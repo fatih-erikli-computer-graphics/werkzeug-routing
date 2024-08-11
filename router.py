@@ -2,27 +2,22 @@ rules = []
 
 def parse_rule(rule):
   r = []
-  seek_path_name = False
   buffer = ''
   type = "path"
   for t in rule:
     if t == "<":
+      if buffer:
+        r.append(["path", buffer])
+        buffer = ""
       type = "placeholder"
       continue
     if t == ">":
+      r.append(["placeholder", buffer])
+      buffer = ""
+      type = "path"
       continue
-    if t == "/":
-      if seek_path_name:
-        r.append([type, buffer])
-        if type == "placeholder":
-          type = "path"
-        buffer = ""
-      else:
-        seek_path_name = True
-      continue
-    if seek_path_name:
-      buffer += t
-  if seek_path_name:
+    buffer += t
+  if buffer:
     r.append([type, buffer])
   return r
 
@@ -33,42 +28,43 @@ def add_rule(rule, func=None):
     return adder
   rules.append([parse_rule(rule), func])
 
-def parse_requested_path(path):
-  path_requested = []
-  buffer = ""
-  for t in path:
-    if t == "/":
-      if buffer:
-        path_requested.append(buffer)
-      buffer = ""
-    else:
-      buffer += t
-  if buffer:
-    path_requested.append(buffer)
-  return path_requested
-
 def resolve(path):
-  path_requested = parse_requested_path(path)
-  for [rule, func] in rules:
-    if len(path_requested) == 0:
-      if len(rule) == 1 and rule[0][0] == "path" and rule[0][1] == "":
-        return [{}, func]
-    if len(path_requested) != len(rule):
-      continue
+  for (rule, func) in rules:
     match = False
-    skip_until_next = False
-    args = []
-    for path, [type, name] in zip(path_requested, rule):
-      if skip_until_next:
+    skip_until_next_rule = False
+    path_current = path
+    args = {}
+    for (i, (type, name)) in enumerate(rule):
+      if skip_until_next_rule:
         continue
       if type == "path":
-        if path == name:
+        if path_current.startswith(name):
           match = True
+          path_current = path_current[len(name):]
+          continue
         else:
           match = False
-          skip_until_next = True
-      else:
-        match = True
-        args.append([name, path])
-    if match:
-      return [dict(args), func]
+          skip_until_next_rule = True
+          continue
+      if type == "placeholder":
+        next_path = None
+        for [_type, _name] in rule[i+1:]:
+          if _type == "path":
+            next_path = _name
+            break
+        if next_path:
+          if next_path in path_current:
+            arg = path_current[:path_current.index(next_path)]
+            args[name] = arg
+            path_current = path_current[len(arg):]
+            match = True
+          else:
+            skip_until_next_rule = True
+            match = False
+        else:
+          skip_until_next_rule = True
+          args[name] = path_current
+          path_current = ""
+          match = True
+    if not path_current and match:
+      return args, func

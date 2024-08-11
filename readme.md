@@ -24,4 +24,6 @@ The function `add_rule` may be called in decorator format as in the example belo
     if match:
       print(match[1](**match[0]))
 
-# Implementation 
+# Implementation notes
+
+The routes should narrow to the least common match. See the tests for an example.
