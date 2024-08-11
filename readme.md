@@ -26,4 +26,4 @@ The function `add_rule` may be called in decorator format as in the example belo
 
 # Implementation notes
 
-The routes should narrow to the least common match. See the tests for an example.
+The routes should narrow to the most common match from up to down. See the tests for an example.
