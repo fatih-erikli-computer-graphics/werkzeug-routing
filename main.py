@@ -2,11 +2,22 @@ import json
 import os
 import socketserver
 from urllib.parse import unquote_plus
-from server import Server
+from server import Server, request
 
 from router import add_rule
 
 PORT = 4001
+
+@add_rule("/set")
+def set():
+  key = request["body"].get("key")
+  value = request["body"].get("value")
+  f = open(os.path.join(os.path.dirname(__file__), "data", key), "w")
+  f.write(value)
+  f.close()
+  return json.dumps({
+    "result": "ok"
+  })
 
 @add_rule("/set/<key>/<value>")
 def index(key, value):
